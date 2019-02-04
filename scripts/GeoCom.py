@@ -1,3 +1,4 @@
+from __future__ import print_function
 #Copyright (c) 2013, Marcel Schoch, ASL, ETH Zurich, Switzerland
 #You can contact the author at <slynen at ethz dot ch>
 #
@@ -25,8 +26,12 @@
 #(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from builtins import str
+from builtins import range
+from builtins import object
 import serial
 import time
+import pdb
 
 #ser = serial.Serial(
 #    port='/dev/ttyUSB0',
@@ -39,7 +44,7 @@ ser = 0
 
 Debug_Level = 0;
 
-class ResponseClass:
+class ResponseClass(object):
     RC_COM = 0
     TrId = 0
     RC = 0
@@ -59,21 +64,21 @@ class ResponseClass:
             self.parameters = words[3:len(words)]
 
             if(self.RC==0 and Debug_Level==1) :
-                print 'Problem occurred, Error code: ', self.RC
+                print('Problem occurred, Error code: ', self.RC)
 
 
 def SerialRequest(request, length = 0, t_timeout = 3):
     if(Debug_Level==2) :
-        print request
+        print(request)
         
     response = ResponseClass()
     global ser
         
     try : # try method for the case that TS is not connected
         ser.read(ser.inWaiting())
-    
-       
-        ser.write(request + '\r\n')
+
+        lf_req = request + '\r\n'
+        ser.write(lf_req.encode())
         
         t_start = time.time()
         # do as long as:
@@ -91,14 +96,15 @@ def SerialRequest(request, length = 0, t_timeout = 3):
         time.sleep(0.025)	# Short break to make sure serial port is not read while stuff is written
 
         serial_output = ser.read(ser.inWaiting())
-        response.setResponse(serial_output)
+        output_str = "".join( chr(x) for x in bytearray(serial_output))
+        response.setResponse(output_str)
         
         if(Debug_Level==2) :
-            print serial_output
+            print(serial_output)
 
 
     except :
-        print "Leica TS communication error - not connected?"
+        print("Leica TS communication error - not connected?")
         response.RC = 1
         
     return response
@@ -142,15 +148,15 @@ def COM_OpenConnection(ePort, eRate, nRetries=5):
             ser.open()
             if(not ser.isOpen()) :
                 ser.close()
-        
+
         if(not ser.isOpen() and Debug_Level==1) :
-            print 'Problem opening port'
+            print('Problem opening port')
         
         # 0 = everything ok
         return [not ser.isOpen(),ser,0]
     
     except :
-        print "Connection Error - Leica TS not connected?"
+        print("Connection Error - Leica TS not connected?")
         return [1,0,[]]
 
 
@@ -161,7 +167,7 @@ def COM_CloseConnection():
     
     
     if(not ser.isOpen() and Debug_Level==1) :
-        print 'Problem closing port'
+        print('Problem closing port')
         
     return [ser.isOpen(),0,[]]
 
@@ -175,17 +181,17 @@ def COM_SwitchOnTPS(eOnMode=2) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Turn on TPS' 
+            print('Turn on TPS') 
         
     elif(response.RC==5) :
         error = 0
         if(Debug_Level==1) :
-            print 'TPS already turned on'
+            print('TPS already turned on')
 
     else :
         error = 1
         if(Debug_Level==1) :
-            print 'Problem turning TPS on'
+            print('Problem turning TPS on')
         
     return [error,response.RC,[]]
 
@@ -200,12 +206,12 @@ def COM_SwitchOffTPS(eOffMode=0) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Shut down TPS'
+            print('Shut down TPS')
     
     else :
         error = 1
         if(Debug_Level==1) :
-            print 'Error shutting down TPS'
+            print('Error shutting down TPS')
 
     return [error,response.RC,[]]
 
@@ -223,7 +229,7 @@ def CSV_GetDateTime():
             DateTime.append(HexToDec(response.parameters[i]))
         
         if(Debug_Level==1) :
-            print 'Date and Time: ', DateTime
+            print('Date and Time: ', DateTime)
 
     return [error,response.RC,DateTime]
 
@@ -236,7 +242,7 @@ def CSV_GetInstrumentNo():
         serial_num = response.parameters[0]
         
         if (Debug_Level == 1):
-            print 'Serial number:', serial_num
+            print('Serial number:', serial_num)
     return [error, response.RC, serial_num]
 
 def CSV_GetInstrumentName():
@@ -248,7 +254,7 @@ def CSV_GetInstrumentName():
         inst_name = response.parameters[0]
         
         if (Debug_Level == 1):
-            print 'Instrument name:', inst_name
+            print('Instrument name:', inst_name)
             
     return [error, response.RC, inst_name]
 
@@ -269,8 +275,8 @@ def CSV_CheckPower():
         power_src = response.parameters[1]
         
         if (Debug_Level == 1):
-            print 'Battery capacity:', bat_cap
-            print 'Power source:', power_src
+            print('Battery capacity:', bat_cap)
+            print('Power source:', power_src)
             
     return [error, response.RC, [bat_cap, power_src]]
 
@@ -285,7 +291,7 @@ def AUS_SetUserLockState(on = 0):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Lock activated or deactivated'
+            print('Lock activated or deactivated')
     return [error, response.RC, []]
 
 def AUS_SetUserAtrState(on = 0):
@@ -299,7 +305,7 @@ def AUS_SetUserAtrState(on = 0):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'ATR activated or deactivated'
+            print('ATR activated or deactivated')
 
 
     return [error, response.RC, []]
@@ -314,7 +320,7 @@ def AUT_MakePositioning(Hz, V, POSMode=0, ATRMode=0, bDummy=0):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Going to new position: ', Hz, ',', V
+            print('Going to new position: ', Hz, ',', V)
 
             
     return [error, response.RC, []]
@@ -329,11 +335,11 @@ def AUT_Search(Hz_Area, V_Area, bDummy = 0, t_timeout = 3):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Target search successful'
+            print('Target search successful')
     else :
         if(Debug_Level==1) :
             if(response.RC==8710) :
-                print 'No target found'
+                print('No target found')
             
     return [error, response.RC, []]
 
@@ -363,7 +369,7 @@ def AUT_LockIn() :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Lock successful'
+            print('Lock successful')
 
             
     return [error, response.RC, []]
@@ -405,7 +411,7 @@ def EDM_Laserpointer(eOn = 0):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Laserpointer turned on/off'
+            print('Laserpointer turned on/off')
         
     
     return [error, response.RC, []]
@@ -425,7 +431,7 @@ def EDM_SetEGLIntensity(cmd):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'EGL intensity set to ', cmd
+            print('EGL intensity set to ', cmd)
         
     
     return [error, response.RC, []]
@@ -441,7 +447,7 @@ def TMC_DoMeasure(cmd=1, mode=1) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Measuring successful'
+            print('Measuring successful')
         
             
     return [error, response.RC, []]
@@ -457,7 +463,7 @@ def TMC_SetEdmMode(mode=6) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'EDM Mode set successfully'
+            print('EDM Mode set successfully')
             
     return [error, response.RC, []]
 
@@ -477,7 +483,7 @@ def TMC_GetCoordinate(WaitTime=100,mode=1) :
             coord = [float(response.parameters[0]),float(response.parameters[1]),float(response.parameters[2])]
             
             if(Debug_Level==1) :
-                print 'Coordinates read successfully: ', coord
+                print('Coordinates read successfully: ', coord)
                 
         else :
             error = 1
@@ -498,7 +504,7 @@ def TMC_GetSimpleMea(WaitTime=100, mode = 1) :
         error = 0
         coord = [response.parameters[0],response.parameters[1],response.parameters[2]]
         if(Debug_Level==1) :
-            print 'Coordinates read successfully: ', coord
+            print('Coordinates read successfully: ', coord)
 
             
     return [error, response.RC, coord]
@@ -609,7 +615,7 @@ def MOT_StartController(ControlMode=2):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Motor controller started'
+            print('Motor controller started')
    
     return [error, response.RC, []]
 
@@ -626,7 +632,7 @@ def MOT_StopController(Mode=0):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Motor controller stopped'
+            print('Motor controller stopped')
 
     
     return [error, response.RC, []]
@@ -641,7 +647,7 @@ def MOT_SetVelocity(Hz_speed,v_speed) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Velocity set'
+            print('Velocity set')
             
             
     return [error, response.RC, []]
@@ -660,7 +666,7 @@ def MOT_ReadLockStatus() :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Lock status:', response.parameters[0]
+            print('Lock status:', response.parameters[0])
             
             
     return [error, response.RC, response.parameters[0]]
@@ -684,7 +690,7 @@ def BAP_GetTargetType() :
         parameter = response.parameters[0]
         
         if(Debug_Level==1) :
-            print 'Target type: ', BAP_TARGET_TYPE[int(response.parameters[0])][1]
+            print('Target type: ', BAP_TARGET_TYPE[int(response.parameters[0])][1])
 
             
     return [error, response.RC, parameter]
@@ -701,7 +707,7 @@ def BAP_SetTargetType(eTargetType = 0) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Target set successfully '
+            print('Target set successfully ')
             
             
     return [error, response.RC, []]
@@ -734,7 +740,7 @@ def BAP_GetPrismType() :
         error = 0
         parameter = [response.parameters[0], BAP_PRISMTYPE[int(response.parameters[0])][1]]
         if(Debug_Level==1) :
-            print 'Prism type: ', BAP_PRISMTYPE[int(response.parameters[0])][1]
+            print('Prism type: ', BAP_PRISMTYPE[int(response.parameters[0])][1])
 
             
     return [error, response.RC, parameter]
@@ -749,7 +755,7 @@ def BAP_SetPrismType(ePrismType) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Prism type set'
+            print('Prism type set')
             
     return [error, response.RC, []]
     
@@ -782,7 +788,7 @@ def BAP_GetMeasPrg() :
         error = 0
         parameter = [response.parameters[0],BAP_USER_MEASPRG[int(response.parameters[0])][1]]
         if(Debug_Level==1) :
-            print 'Measurement program: ', BAP_USER_MEASPRG[int(response.parameters[0])][1]
+            print('Measurement program: ', BAP_USER_MEASPRG[int(response.parameters[0])][1])
 
             
     return [error, response.RC, parameter]
@@ -797,7 +803,7 @@ def BAP_SetMeasPrg(eMeasPrg) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Measurement program set'
+            print('Measurement program set')
 
             
     return [error, response.RC, []]
@@ -812,16 +818,16 @@ def BAP_SearchTarget(bDummy = 0) :
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Prism found!'
+            print('Prism found!')
             
     else :
         if(Debug_Level==1) :
 
             if(response.RC == 8710) :
-                print 'No prism found!'
+                print('No prism found!')
 
             elif(response.RC == 8711) :
-                print 'Multiple prism found!'
+                print('Multiple prism found!')
 
             
     return [error, response.RC, []]
@@ -837,7 +843,7 @@ def CAM_TakeImage(CamID = 0):
     if(response.RC==0) :
         error = 0
         if(Debug_Level==1) :
-            print 'Prism found!'
+            print('Prism found!')
             
             
     return [error, response.RC, []]
