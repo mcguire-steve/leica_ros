@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 '''
 Python node to talk to a Leica Totalstation 1200 series to use it as a tracker system
 Based off of 
@@ -12,7 +12,14 @@ The GeoCOM interface uses a global (!) serial port object - ugh
 
 
 '''
+from __future__ import division
+from __future__ import print_function
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from past.utils import old_div
+from builtins import object
 import rospy
 import GeoCom
 import actionlib
@@ -25,8 +32,9 @@ from std_srvs.srv import *
 from optparse import OptionParser
 import math
 from math import sin,cos
-from Queue import *
+from queue import *
 from threading import *
+import pdb
 
 ''' 
 Since ROS service handlers are called in a separate thread, there needs to be a thread-safe way
@@ -193,10 +201,10 @@ class LeicaNode(object):
         
         #Zeroth, stop tracking if we're already doing that:
         [error, RC, coord] = GeoCom.AUS_SetUserLockState(0)
-        print 'Lock(0), RC:', RC
+        print('Lock(0), RC:', RC)
         
         [error, RC, coord] = GeoCom.AUS_SetUserAtrState(0)
-        print 'ATR(0), RC:', RC
+        print('ATR(0), RC:', RC)
         
         #Update the tracking state data
         self.handleUpdateState(None)
@@ -211,9 +219,9 @@ class LeicaNode(object):
         elif self.prismType == 'mini':
             prism_num = 7 #mini 360 prism
         else:
-            print 'Unknown prism type:', self.prismType
+            print('Unknown prism type:', self.prismType)
             return res
-        print 'Setting prism num:', prism_num
+        print('Setting prism num:', prism_num)
         
         [error, RC, args] = GeoCom.BAP_SetPrismType(prism_num)
         feedback.status = 'Prism set to:', prism_num
@@ -225,9 +233,9 @@ class LeicaNode(object):
         V = 20
 
         if GeoCom.AUT_Search(math.radians(Hz),math.radians(V))[1] == 0:
-            [error, RC, parameters] = GeoCom.AUT_FineAdjust(math.radians(Hz/2),math.radians(V/2))
+            [error, RC, parameters] = GeoCom.AUT_FineAdjust(math.radians(old_div(Hz,2)),math.radians(old_div(V,2)))
             if RC != 0:
-                print 'Unable to find prism, code:', RC
+                print('Unable to find prism, code:', RC)
                 feedback.status = 'Unable to find prism'
                 feedback.rc = RC
                 self.enableAction.publish_feedback(feedback)
@@ -240,10 +248,10 @@ class LeicaNode(object):
         res = StartTrackingResponse()
         #Zeroth, stop tracking if we're already doing that:
         [error, RC, coord] = GeoCom.AUS_SetUserLockState(0)
-        print 'Lock(0), RC:', RC
+        print('Lock(0), RC:', RC)
         
         [error, RC, coord] = GeoCom.AUS_SetUserAtrState(0)
-        print 'ATR(0), RC:', RC
+        print('ATR(0), RC:', RC)
         
         #Update the tracking state data
         self.handleUpdateState(None)
@@ -255,9 +263,9 @@ class LeicaNode(object):
         elif self.prismType == 'mini':
             prism_num = 7 #mini 360 prism
         else:
-            print 'Unknown prism type:', self.prismType
+            print('Unknown prism type:', self.prismType)
             return res
-        print 'Setting prism num:', prism_num
+        print('Setting prism num:', prism_num)
         
         [error, RC, args] = GeoCom.BAP_SetPrismType(prism_num)
         
@@ -267,19 +275,32 @@ class LeicaNode(object):
 
         [error, RC, parameters] = GeoCom.AUT_Search(math.radians(Hz),math.radians(V), t_timeout = 10)
         if RC != 0:
-            print 'Unable to find prism, code:', RC
+            print('Unable to find prism, code:', RC)
             res.rc = RC
             return res
         
-        [error, RC, parameters] = GeoCom.AUT_FineAdjust(math.radians(Hz/2),math.radians(V/2))
+        timeoutPeriods = 0
+        while timeoutPeriods < 5:
+            [error, RC, parameters] = GeoCom.AUT_FineAdjust(math.radians(old_div(Hz,2)),math.radians(old_div(V,2)))
+            if RC == 3077:
+                timeoutPeriods += 1
+                continue
+            else:
+                break
+            
         if RC != 0:
-            print 'Unable to fine adjust to prism, code:', RC
-            return res
-        print 'Prism found, enabling ATR'
+                res.rc = RC
+                print('Unable to fine adjust to prism, code:', RC)
+                [error, RC, coord] = GeoCom.AUS_SetUserLockState(0)
+                print('Lock(0), RC:', RC)
+                [error, RC, coord] = GeoCom.AUS_SetUserAtrState(0)
+                return res
+            
+        print('Prism found, enabling ATR')
         [error, RC, coord] = GeoCom.AUS_SetUserLockState(1)
         [error, RC, coord] = GeoCom.AUT_LockIn()
         if RC != 0:
-            print 'Unable to lock prism'
+            print('Unable to lock prism')
             res.rc = RC
             return res
 
@@ -366,7 +387,7 @@ class LeicaNode(object):
                 #Motor is not in OCONST state, no biggie
                 pass
             else:
-                print 'Motor drive: Got an unusual RC:', RC
+                print('Motor drive: Got an unusual RC:', RC)
             
     def handleService(self, cmd):
         #Ensure we have a MarshalledCall to deal with
@@ -388,9 +409,9 @@ class LeicaNode(object):
             elif cmd.name == 'MotorVelocity':
                 self.handleMotorVelocity(cmd)
             else:
-                print('Unknown service request:', cmd.name)
+                print(('Unknown service request:', cmd.name))
         else:
-            print('Unknown enqueued work item class:', type(cmd))
+            print(('Unknown enqueued work item class:', type(cmd)))
         return
     
     def updateState(self, event):
@@ -407,7 +428,7 @@ class LeicaNode(object):
         #print 'Publishing measurement'
         [error, RC, coord] = GeoCom.TMC_GetSimpleMea(5, 1) #TMC_AUTO_INC mode, TMC_INCLINE_PRG
         if RC != 0:
-            print 'Measurement anomaly:', RC
+            print('Measurement anomaly:', RC)
             return
         
         phi = -float(coord[0])
@@ -462,14 +483,17 @@ class LeicaNode(object):
           If we're in tracking, pull a measurement and publish it
         '''
         #Open the connection to the TS:
-        if GeoCom.COM_OpenConnection(self.portName, self.baudRate)[0]:
-            print 'Unable to open connection to port:', self.portName
-            #return
+        print('Using port:', self.portName)
+
+        connection = GeoCom.COM_OpenConnection(self.portName, self.baudRate)
+        if connection[0]:
+            print('Unable to open connection to port:', self.portName)
+            return
 
         #Find the particulars of the connected TS:
         inst_name = GeoCom.CSV_GetInstrumentName()[2]
         serial_num = GeoCom.CSV_GetInstrumentNo()[2]
-        print 'Found TS:',  inst_name, ' with instrument number:', serial_num
+        print('Found TS:',  inst_name, ' with instrument number:', serial_num)
         #Initialize the TS to a known state:
         self.handleStopTracking(None)
         
