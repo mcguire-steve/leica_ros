@@ -1,4 +1,5 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python
+from builtins import object
 import rospy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
@@ -18,16 +19,18 @@ class LeicaTeleop(object):
         #suck in some parameters that map joystick inputs to TS movement
         self.h_axis = rospy.get_param('~h_axis', 0)
         self.v_axis = rospy.get_param('~v_axis', 1)
+        self.enable_btn = rospy.get_param('~enable_btn', 1) #B on the xbox controller
         
         # subscribed to joystick inputs on topic "joy"
         rospy.Subscriber("joy", Joy, self.callback)
 
     def callback(self, data):
-        twist = Twist()
-        #Max speed is 0.79 rad/s according to the manual
-        twist.angular.z = -0.5*data.axes[self.h_axis]
-        twist.angular.y = 0.5*data.axes[self.v_axis]
-        self.pub.publish(twist)
+        if data.buttons[self.enable_btn]:
+            twist = Twist()
+            #Max speed is 0.79 rad/s according to the manual
+            twist.angular.z = -0.5*data.axes[self.h_axis]
+            twist.angular.y = 0.5*data.axes[self.v_axis]
+            self.pub.publish(twist)
 
 # Intializes everything
 def start():
